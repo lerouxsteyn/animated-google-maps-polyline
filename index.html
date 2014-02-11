@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
+<head>
+    <meta charset="utf-8">
+    <title>Animated Google Maps Polyline</title>
+
+    <script src="http://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
+    <script src="http://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.0/jquery.js"></script>
+</head>
+<body>
+    <div id="map-canvas" style="width: 600px; height: 600px;"></div>
+    
+    <script>
+
+        //Variables
+        var map, markers = [], pointsDone = [], bounds, myInterval, startPoint, endPoint, progress;
+        
+        //Settings
+        var stepSize = 300; //Size of every animation increment
+        var stepTime = 5;   //Decrease to speed up
+
+        //This array holds all the points that polylines will animated from/to
+        var mapPoints = [{
+            latitude: -33.924,
+            longitude: 378.423
+        },{
+            latitude: -34.057,
+            longitude: 378.379
+        },{
+            latitude: -34.217,
+            longitude: 378.388
+        },{
+            latitude: -34.062,
+            longitude: 378.467
+        },{
+            latitude: -33.886,
+            longitude: 378.636
+        }];
+
+        //Google map settings
+        var mapOptions = {
+            zoom: 11,
+            center: new google.maps.LatLng(mapPoints[0].latitude, mapPoints[0].longitude)
+        };
+
+
+        function initializeMap() {
+            
+            //Create map
+            map = new google.maps.Map(document.getElementById('map-canvas'), mapOptions);
+            bounds = new google.maps.LatLngBounds();
+
+            //Iterate through all points in mapPoints
+            $.each(mapPoints, function(key, value) {
+                //create marker
+                var myLatLng = new google.maps.LatLng(value.latitude, value.longitude);
+                marker = new google.maps.Marker({
+                    position: myLatLng,
+                    map: map,
+                    visible: false
+                });
+                markers.push(marker);
+                                    
+                //add to bounds and path
+                bounds.extend(myLatLng);
+            });
+
+            //Center & zoom map on all mapPoints
+            map.fitBounds(bounds);
+
+            //Add first mapPoint to an array that will keep points that have been animated
+            pointsDone.push(new google.maps.LatLng(mapPoints[0].latitude, mapPoints[0].longitude));
+            
+            //Start the animation on first point in mapPoints
+            google.maps.event.addListener(map, 'idle', function() {
+                pathAnimation(0);
+            });
+        }
+
+
+        //Following function gets called one polyline at a time
+        function pathAnimation(point) {
+            
+            //Make marker visible once path has reached that point
+            markers[point].setVisible(true);
+
+            //Set start & end point for this polyline
+            startPoint = pointsDone[point];
+            endPoint = new google.maps.LatLng(mapPoints[point+1].latitude, mapPoints[point+1].longitude);
+            
+            //Create the polyline
+            myPath = new google.maps.Polyline({
+                path: pointsDone,
+                geodesic: false,
+                strokeColor: '#000000',
+                strokeOpacity: 1.0,
+                strokeWeight: 5,
+                map: map
+            });
+
+            //Add this point to the array keeping points that have already been animated to
+            pointsDone.push(endPoint);
+            
+            //Animation loop
+            step = 0;
+            myInterval = setInterval(function() {
+                step += 1;
+                if (step > stepSize) {
+                    //Done drawing, clear the interval, and call pathAnimation() again, IF we're not done animating all the polylines
+                    clearInterval(myInterval);
+                    if(pointsDone.length-1 < mapPoints.length) {
+                        pathAnimation(pointsDone.length-1);
+                    }
+                } else {
+                    //Not done drawing yet...
+                    progress = google.maps.geometry.spherical.interpolate(startPoint,endPoint,step/stepSize);
+                    myPath.setPath([startPoint, progress]);
+                }
+            }, stepTime);
+        }
+
+
+        //Start it up
+        initializeMap();
+
+    </script>
+</body>
+</html>
